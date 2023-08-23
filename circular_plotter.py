@@ -151,7 +151,7 @@ class SCCWithChords:
         self.hover_info_box.set_text("\n\n".join(info_texts))
         plt.draw()
     
-    def plot(self, lda=None, dataset_name=None):
+    def plot(self, lda=None, dataset_name=None, decision_boundary=None):
         fig = plt.figure(figsize=(12, 8))  # Adjusted the figure size for better layout
         
         # Define gridspec to create a grid layout
@@ -218,13 +218,18 @@ class SCCWithChords:
         coef = lda.coef_[0]
         m = -coef[0] / coef[1]
         theta = np.arctan(m)
+        circle_radius *= 2
 
-        # Draw the LDA discrimination line
-        circle_radius = self.data.shape[1] - 1
-        end_radius = circle_radius / 4 + 0.25  # Extend the line a bit beyond the circle
-        x_end = end_radius * np.cos(theta)
-        y_end = end_radius * np.sin(theta)
-        self.ax.plot([0, x_end], [0, y_end], color='black', linestyle='--', label='LDA Boundary')
+        # Draw the LDA discrimination line as a radial line
+        x_end = circle_radius * np.cos(theta)
+        y_end = circle_radius * np.sin(theta)
+        self.ax.plot([0, x_end], [0, y_end], color='black', linestyle='--')
+
+        # Label the LDA boundary position
+        boundary_label_position_factor = 1.1  # adjust this factor to place the label slightly outside the circle
+        x_label = boundary_label_position_factor * x_end
+        y_label = boundary_label_position_factor * y_end
+        self.ax.text(x_label, y_label, "LDA Boundary", fontsize=8, ha='center')
 
         # Plot the confusion matrix in ax2
         X = self.data.drop(columns='class').values
@@ -266,15 +271,26 @@ def load_and_visualize():
 
     # Load the chosen dataset
     df = pd.read_csv(filepath)
-    
+    scc_instance = SCCWithChords(df)
     # Fit LDA and predict
     X = df.drop(columns='class').values
     y = df['class'].values
     lda = LinearDiscriminantAnalysis()
     lda.fit(X, y)
 
-    scc_with_legend_and_style = SCCWithChords(df)
-    scc_with_legend_and_style.plot(lda, dataset_name)
+    # After fitting the LDA and predicting:
+    y_pred = lda.predict(X)
+    misclassified = np.where(y != y_pred)[0]
+    decision_boundary = None
+    if len(misclassified) > 0:
+        misclassified_positions = [point[0] for idx in misclassified for point in SCCWithChords.all_positions[idx]]
+        leftmost = min(misclassified_positions, key=lambda x: x[0])  # Assuming x is the x-coordinate
+        rightmost = max(misclassified_positions, key=lambda x: x[0])  # Assuming x is the x-coordinate
+
+        # Calculate the decision boundary
+        decision_boundary = (leftmost[0] + rightmost[0]) / 2
+
+    scc_instance.plot(lda, dataset_name=dataset_name, decision_boundary=decision_boundary)
 
 if __name__ == "__main__":
     load_and_visualize()
