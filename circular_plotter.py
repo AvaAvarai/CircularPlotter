@@ -5,7 +5,6 @@ from sklearn.preprocessing import MinMaxScaler
 import tkinter as tk
 from tkinter import filedialog
 import seaborn as sns
-from scipy.spatial import ConvexHull
 
 def adjusted_bezier_curve(p0, p1, attribute_count):
     """Calculate quadratic Bezier curve points with control points adjusted based on attribute count."""
@@ -149,7 +148,6 @@ def load_and_visualize():
         print("Invalid dataset! Ensure the dataset has a 'class' column and other columns are numeric.")
         return
 
-    # Visualize the dataset using the SCCWithLegendAndStyle class
     scc_with_legend_and_style = SCCWithChords(df)
     scc_with_legend_and_style.plot()
 
