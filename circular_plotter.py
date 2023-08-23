@@ -6,7 +6,28 @@ import tkinter as tk
 from tkinter import filedialog
 import seaborn as sns
 
-def adjusted_bezier_curve(p0, p1, class_order, attribute_count, radius, coef=100):
+def lighten_color(color, factor=0.2):
+    """
+    Lightens the given color.
+    
+    Parameters:
+    color : tuple of float
+        Original color as an (R, G, B) tuple.
+    factor : float
+        Factor to lighten the color. 
+        0 means no change, 1 means white color. 
+        Default is 0.2.
+
+    Returns:
+    tuple of float
+        Lightened color as an (R, G, B) tuple.
+    """
+    r = color[0] + (1 - color[0]) * factor
+    g = color[1] + (1 - color[1]) * factor
+    b = color[2] + (1 - color[2]) * factor
+    return (r, g, b)
+
+def adjusted_bezier_curve(p0, p1, class_order, radius, coef=100):
     """Calculate quadratic Bezier curve points with control points adjusted based on attribute count."""
     
     # Calculate the midpoint between p0 and p1
@@ -81,19 +102,31 @@ class SCCWithChords:
                 if arc_rule >= attribute_count:
                     arc_length = 0
                     arc_rule = 0
-                arc_length += y_coord[i]
+                else:
+                    arc_length += y_coord[i]
+                    arc_rule += 1
                 radius = attribute_count / (2 * np.pi)
                 center_angle = arc_length * 360 / (2 * np.pi * radius)
                 center_angle = np.pi * center_angle / 180
                 x_coord[i] = radius * np.sin(center_angle)
                 y_coord[i] = radius * np.cos(center_angle)
-                arc_rule += 1
-                arc_length = arc_rule
+                
             pos_array = np.column_stack((x_coord, y_coord))
             positions.extend(pos_array)
             colors = [self.color_map[class_name]] * len(pos_array)
             self.all_positions.append(positions)
             self.all_colors.append(colors)
+    
+    def on_hover(self, event):
+        """Called when the mouse moves over the figure."""
+        for line, original_color in self.lines:
+            if line.contains(event)[0]:
+                line.set_color('yellow')
+                line.set_alpha(0.6)  # Making the hovered line a bit more opaque
+            else:
+                line.set_color(original_color)
+                line.set_alpha(0.3)
+        plt.draw()
     
     def plot(self):
         fig, ax = plt.subplots(figsize=(8, 8))
@@ -105,11 +138,24 @@ class SCCWithChords:
             positions = np.array(positions)
             ax.scatter(positions[:, 0], positions[:, 1], color=colors, s=20, alpha=0.5)
             
+            lightened_color = lighten_color(colors[0])
             for i in range(len(positions) - 1):
-                curve_points = adjusted_bezier_curve(positions[i], positions[i+1], class_order, attribute_count, circle_radius)
-                ax.plot(curve_points[:, 0], curve_points[:, 1], color=colors[0], alpha=0.5)
+                curve_points = adjusted_bezier_curve(positions[i], positions[i+1], class_order, circle_radius)
+                ax.plot(curve_points[:, 0], curve_points[:, 1], color=lightened_color, alpha=0.3)
+        self.lines = []  # To store the plotted lines for hover effect
         
+        for class_order, (positions, colors) in enumerate(zip(self.all_positions, self.all_colors)):
+            positions = np.array(positions)
+            ax.scatter(positions[:, 0], positions[:, 1], color=colors, s=20, alpha=0.5)
+            
+            lightened_color = lighten_color(colors[0])
+            for i in range(len(positions) - 1):
+                curve_points = adjusted_bezier_curve(positions[i], positions[i+1], class_order, circle_radius)
+                line, = ax.plot(curve_points[:, 0], curve_points[:, 1], color=lightened_color, alpha=0.3)
+                self.lines.append((line, lightened_color))
         
+        # Connect the motion_notify_event to the on_hover function
+        fig.canvas.mpl_connect('motion_notify_event', self.on_hover)
         circle = plt.Circle((0, 0), circle_radius, color='darkgrey', fill=False)
         ax.add_artist(circle)
         
@@ -168,7 +214,6 @@ def load_and_visualize():
 
     scc_with_legend_and_style = SCCWithChords(df)
     scc_with_legend_and_style.plot()
-
 
 if __name__ == "__main__":
     load_and_visualize()
