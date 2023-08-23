@@ -119,41 +119,40 @@ class SCCWithChords:
     
     def on_hover(self, event):
         """Called when the mouse moves over the figure."""
-        for line, original_color in self.lines:
+        info_texts = []  # List to store the hover details for all highlighted lines
+        
+        for line, original_color, start_point, end_point in self.lines:
             if line.contains(event)[0]:
                 line.set_color('yellow')
-                line.set_alpha(0.6)  # Making the hovered line a bit more opaque
+                line.set_alpha(0.6)
+
+                # Add the hover details for the line to the list
+                info_texts.append(f"Start: {start_point}\nEnd: {end_point}")
             else:
                 line.set_color(original_color)
                 line.set_alpha(0.3)
+
+        # Convert the list of hover details into a single string and update the textbox
+        self.hover_info_box.set_text("\n\n".join(info_texts))
         plt.draw()
     
     def plot(self):
         fig, ax = plt.subplots(figsize=(8, 8))
-        
+        self.ax = ax
         attribute_count = self.data.shape[1] - 1
         circle_radius = attribute_count / (2 * np.pi)
-        
-        for class_order, (positions, colors) in enumerate(zip(self.all_positions, self.all_colors)):
-            positions = np.array(positions)
-            ax.scatter(positions[:, 0], positions[:, 1], color=colors, s=20, alpha=0.5)
-            
-            lightened_color = lighten_color(colors[0])
-            for i in range(len(positions) - 1):
-                curve_points = adjusted_bezier_curve(positions[i], positions[i+1], class_order, circle_radius)
-                ax.plot(curve_points[:, 0], curve_points[:, 1], color=lightened_color, alpha=0.3)
+
         self.lines = []  # To store the plotted lines for hover effect
-        
+
         for class_order, (positions, colors) in enumerate(zip(self.all_positions, self.all_colors)):
             positions = np.array(positions)
             ax.scatter(positions[:, 0], positions[:, 1], color=colors, s=20, alpha=0.5)
-            
+
             lightened_color = lighten_color(colors[0])
             for i in range(len(positions) - 1):
                 curve_points = adjusted_bezier_curve(positions[i], positions[i+1], class_order, circle_radius)
                 line, = ax.plot(curve_points[:, 0], curve_points[:, 1], color=lightened_color, alpha=0.3)
-                self.lines.append((line, lightened_color))
-        
+                self.lines.append((line, lightened_color, positions[i], positions[i+1]))
         # Connect the motion_notify_event to the on_hover function
         fig.canvas.mpl_connect('motion_notify_event', self.on_hover)
         circle = plt.Circle((0, 0), circle_radius, color='darkgrey', fill=False)
@@ -185,12 +184,16 @@ class SCCWithChords:
         ax.yaxis.set_tick_params(width=0.5)
         plt.xticks(color='darkgrey')
         plt.yticks(color='darkgrey')
-        
+
+        # Create a textbox for hover details
+        self.hover_info_box = ax.text(0.0, 0.0, '', transform=ax.transAxes, fontsize=8, 
+                              bbox=dict(facecolor='whitesmoke', edgecolor='darkgrey'))
+
         # Add legend for class color notation
         for class_name, color in self.color_map.items():
             ax.plot([], [], ' ', label=class_name, marker='o', color=color, markersize=10, markeredgecolor="none")
         ax.legend(loc="best", frameon=False, title="Classes")
-
+        
         ax.set_aspect('equal')
         plt.show()
 
