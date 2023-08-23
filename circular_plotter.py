@@ -6,16 +6,33 @@ import tkinter as tk
 from tkinter import filedialog
 import seaborn as sns
 
-def adjusted_bezier_curve(p0, p1, attribute_count):
+def adjusted_bezier_curve(p0, p1, class_order, attribute_count, radius, coef=100):
     """Calculate quadratic Bezier curve points with control points adjusted based on attribute count."""
-    # Control point is the midpoint between p0 and p1 but moved towards the origin
-    control_point = 0.5 * (p0 + p1)
-    control_point_norm = np.linalg.norm(control_point)
     
-    # Adjust the control point's distance from the center based on attribute count
-    adjustment_factor = 0.1 + 0.5 / attribute_count
-    control_point = control_point * (1 - adjustment_factor / control_point_norm)
+    # Calculate the midpoint between p0 and p1
+    x = (p0[0] + p1[0]) / 2
+    y = (p0[1] + p1[1]) / 2
+
+    # Calculate the distance between the center point (0,0) and the midpoint
+    mDistance = np.sqrt(np.power(0 - x, 2) + np.power(0 - y, 2))
+
+    if class_order == 0:  # Inner curve
+        # Calculate the scaling factor for the inner curve
+        factor = 0.1 * coef / 100
+    else:  # Outer curve
+        # Calculate the scaling factor for the outer curve
+        factor = 4 * coef / 100
     
+    mScale = factor * radius / mDistance
+    
+    # Calculate the control point
+    control_point = np.array([x * mScale, y * mScale])
+
+    # Invert the direction for the second class (or any subsequent class)
+    if class_order > 0:
+        direction = -control_point / np.linalg.norm(control_point)
+        control_point = control_point + 2 * direction * mDistance
+
     # Calculate the Bezier curve points
     t_values = np.linspace(0, 1, 10)
     curve_points = []
@@ -51,7 +68,7 @@ class SCCWithChords:
         self.all_positions = []
         self.all_colors = []
 
-        for class_name in classes:
+        for class_order, class_name in enumerate(classes):
             positions = []
             df_name = self.data[self.data['class'] == class_name]
             df_name = df_name.drop(columns='class', axis=1)
@@ -77,21 +94,22 @@ class SCCWithChords:
             colors = [self.color_map[class_name]] * len(pos_array)
             self.all_positions.append(positions)
             self.all_colors.append(colors)
-
+    
     def plot(self):
         fig, ax = plt.subplots(figsize=(8, 8))
         
         attribute_count = self.data.shape[1] - 1
+        circle_radius = attribute_count / (2 * np.pi)
         
-        for positions, colors in zip(self.all_positions, self.all_colors):
+        for class_order, (positions, colors) in enumerate(zip(self.all_positions, self.all_colors)):
             positions = np.array(positions)
             ax.scatter(positions[:, 0], positions[:, 1], color=colors, s=20, alpha=0.5)
             
             for i in range(len(positions) - 1):
-                curve_points = adjusted_bezier_curve(positions[i], positions[i+1], attribute_count)
+                curve_points = adjusted_bezier_curve(positions[i], positions[i+1], class_order, attribute_count, circle_radius)
                 ax.plot(curve_points[:, 0], curve_points[:, 1], color=colors[0], alpha=0.5)
         
-        circle_radius = attribute_count / (2 * np.pi)
+        
         circle = plt.Circle((0, 0), circle_radius, color='darkgrey', fill=False)
         ax.add_artist(circle)
         
@@ -99,7 +117,7 @@ class SCCWithChords:
         attributes = self.data.drop(columns='class').columns
         for i, attribute in enumerate(attributes):
             angle = 2 * np.pi * (i + 0.5) / attribute_count
-            label_radius = (circle_radius + 0.3)
+            label_radius = (circle_radius + 0.2)
             x = label_radius * np.sin(angle)
             y = label_radius * np.cos(angle)
             if 0 <= angle <= np.pi:
