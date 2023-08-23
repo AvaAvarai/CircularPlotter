@@ -119,15 +119,18 @@ class SCCWithChords:
     def on_hover(self, event):
         """Called when the mouse moves over the figure."""
         info_texts = []  # List to store the hover details for all highlighted lines
-        
+
         hovered_row = None  # Keep track of which data row is being hovered over
-        for line, original_color, start_point, end_point, row in self.lines:
+        hovered_class = None  # Keep track of which class the hovered data point belongs to
+
+        for line, original_color, start_point, end_point, row, class_info in self.lines:
             if line.contains(event)[0]:
                 hovered_row = row
+                hovered_class = class_info
                 break
 
-        for line, original_color, start_point, end_point, row in self.lines:
-            if row == hovered_row:
+        for line, original_color, start_point, end_point, row, class_info in self.lines:
+            if row == hovered_row and class_info == hovered_class:
                 line.set_color('yellow')
                 line.set_alpha(1.0)
                 line.set_zorder(1)  # Bring the line to the front
@@ -136,9 +139,11 @@ class SCCWithChords:
                 line.set_alpha(0.4)
                 line.set_zorder(0)
 
-        # Get the attribute values for the hovered row and format them into the desired vector representation
+        # Retrieve the correct vector information
         if hovered_row is not None:
-            vector = self.data.iloc[hovered_row].values
+            class_names = self.data['class'].unique()
+            class_name = class_names[hovered_class]
+            vector = self.data[self.data['class'] == class_name].iloc[hovered_row].values
             info_texts.append(str(vector))
 
         # Fix the hover info box position to the top-left corner of the axes
@@ -151,11 +156,11 @@ class SCCWithChords:
         self.hover_info_box.set_text("\n\n".join(info_texts))
         plt.draw()
     
-    def plot(self, lda=None, dataset_name=None, decision_boundary=None):
+    def plot(self, lda=None, dataset_name=None):
         fig = plt.figure(figsize=(12, 8))  # Adjusted the figure size for better layout
         
         # Define gridspec to create a grid layout
-        gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1])  # Adjusted to have the confusion matrix on the right
+        gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1])  # Adjusted to have the confusion matrix on the right
         ax = plt.subplot(gs[0])  # The main visualization will be on the left
         ax2 = plt.subplot(gs[1])  # The confusion matrix will be on the right
         
@@ -179,8 +184,7 @@ class SCCWithChords:
                     end_pos = positions[j + 1]
                     curve_points = adjusted_bezier_curve(start_pos, end_pos, class_order, circle_radius)
                     line, = ax.plot(curve_points[:, 0], curve_points[:, 1], color=lightened_color, alpha=0.3)
-                    self.lines.append((line, lightened_color, start_pos, end_pos, j // attribute_count))
-
+                    self.lines.append((line, lightened_color, start_pos, end_pos, j // attribute_count, class_order))
 
         # Connect the motion_notify_event to the on_hover function
         fig.canvas.mpl_connect('motion_notify_event', self.on_hover)
@@ -290,7 +294,7 @@ def load_and_visualize():
         # Calculate the decision boundary
         decision_boundary = (leftmost[0] + rightmost[0]) / 2
 
-    scc_instance.plot(lda, dataset_name=dataset_name, decision_boundary=decision_boundary)
+    scc_instance.plot(lda, dataset_name=dataset_name)
 
 if __name__ == "__main__":
     load_and_visualize()
