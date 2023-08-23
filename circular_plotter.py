@@ -287,14 +287,14 @@ def load_and_visualize():
     # After fitting the LDA and predicting:
     y_pred = lda.predict(X)
     misclassified = np.where(y != y_pred)[0]
-    decision_boundary = None
-    if len(misclassified) > 0:
-        misclassified_positions = [point[0] for idx in misclassified for point in SCCWithChords.all_positions[idx]]
-        leftmost = min(misclassified_positions, key=lambda x: x[0])  # Assuming x is the x-coordinate
-        rightmost = max(misclassified_positions, key=lambda x: x[0])  # Assuming x is the x-coordinate
+    # decision_boundary = None
+    # if len(misclassified) > 0:
+    #     misclassified_positions = [point[0] for idx in misclassified for point in SCCWithChords.all_positions[idx]]
+    #     leftmost = min(misclassified_positions, key=lambda x: x[0])  # Assuming x is the x-coordinate
+    #     rightmost = max(misclassified_positions, key=lambda x: x[0])  # Assuming x is the x-coordinate
 
-        # Calculate the decision boundary
-        decision_boundary = (leftmost[0] + rightmost[0]) / 2
+    #     # Calculate the decision boundary
+    #     decision_boundary = (leftmost[0] + rightmost[0]) / 2
 
     scc_instance.plot(lda, dataset_name=dataset_name)
 
