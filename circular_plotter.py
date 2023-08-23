@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.metrics import confusion_matrix
 import tkinter as tk
 from tkinter import filedialog
 import seaborn as sns
@@ -128,24 +131,42 @@ class SCCWithChords:
                 line.set_color('yellow')
                 line.set_alpha(1.0)
                 line.set_zorder(1)  # Bring the line to the front
-                # Add the hover details for the line to the list
-                info_texts.append(f"Start: {start_point}\nEnd: {end_point}")
             else:
                 line.set_color(original_color)
                 line.set_alpha(0.4)
                 line.set_zorder(0)
 
-        # Convert the list of hover details into a single string and update the textbox
+        # Get the attribute values for the hovered row and format them into the desired vector representation
+        if hovered_row is not None:
+            vector = self.data.iloc[hovered_row].values
+            info_texts.append(str(vector))
+
+        # Fix the hover info box position to the top-left corner of the axes
+        self.hover_info_box.set_position((0, 1))
+        self.hover_info_box.set_ha('left')
+        self.hover_info_box.set_va('top')
+        self.hover_info_box.set_transform(self.ax.transAxes)  # Using the axes coordinates
+
+        # Update the textbox with the vector representation
         self.hover_info_box.set_text("\n\n".join(info_texts))
         plt.draw()
     
-    def plot(self):
-        fig, ax = plt.subplots(figsize=(8, 8))
+    def plot(self, lda=None, dataset_name=None):
+        fig = plt.figure(figsize=(12, 8))  # Adjusted the figure size for better layout
+        
+        # Define gridspec to create a grid layout
+        gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1])  # Adjusted to have the confusion matrix on the right
+        ax = plt.subplot(gs[0])  # The main visualization will be on the left
+        ax2 = plt.subplot(gs[1])  # The confusion matrix will be on the right
+        
         self.ax = ax
         attribute_count = self.data.shape[1] - 1
         circle_radius = attribute_count / (2 * np.pi)
 
         self.lines = []  # To store the plotted lines for hover effect
+
+        if dataset_name:
+            ax.set_title(f"{dataset_name} in Dynamic Circular Coordinates")
 
         for class_order, (positions, colors) in enumerate(zip(self.all_positions, self.all_colors)):
             positions = np.array(positions)
@@ -170,7 +191,7 @@ class SCCWithChords:
         attributes = self.data.drop(columns='class').columns
         for i, attribute in enumerate(attributes):
             angle = 2 * np.pi * (i + 0.5) / attribute_count
-            label_radius = (circle_radius + 0.2)
+            label_radius = (circle_radius + attribute_count / 4)
             x = label_radius * np.sin(angle)
             y = label_radius * np.cos(angle)
             if 0 <= angle <= np.pi:
@@ -193,6 +214,28 @@ class SCCWithChords:
         plt.xticks(color='darkgrey')
         plt.yticks(color='darkgrey')
 
+        # Calculate the LDA discrimination line's angle
+        coef = lda.coef_[0]
+        m = -coef[0] / coef[1]
+        theta = np.arctan(m)
+
+        # Draw the LDA discrimination line
+        circle_radius = self.data.shape[1] - 1
+        end_radius = circle_radius / 4 + 0.25  # Extend the line a bit beyond the circle
+        x_end = end_radius * np.cos(theta)
+        y_end = end_radius * np.sin(theta)
+        self.ax.plot([0, x_end], [0, y_end], color='black', linestyle='--', label='LDA Boundary')
+
+        # Plot the confusion matrix in ax2
+        X = self.data.drop(columns='class').values
+        y = self.data['class'].values
+        y_pred = lda.predict(X)
+        cm = confusion_matrix(y, y_pred)
+        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax2, cbar=False)
+        ax2.set_xlabel('Predicted labels')
+        ax2.set_ylabel('True labels')
+        ax2.set_title('Confusion Matrix')
+
         # Create a textbox for hover details
         self.hover_info_box = ax.text(0.0, 0.0, '', transform=ax.transAxes, fontsize=8, 
                               bbox=dict(facecolor='whitesmoke', edgecolor='darkgrey', alpha=0.2, boxstyle='round'))
@@ -202,8 +245,8 @@ class SCCWithChords:
             ax.plot([], [], ' ', label=class_name, marker='o', color=color, markersize=10, markeredgecolor="none")
         ax.legend(loc="best", frameon=False, title="Classes")
 
-        ax.set_xlim([-circle_radius - attribute_count / 4, circle_radius + attribute_count / 4])
-        ax.set_ylim([-circle_radius - attribute_count / 4, circle_radius + attribute_count / 4])
+        ax.set_xlim([-0.25-attribute_count / 4, 0.25+attribute_count / 4])
+        ax.set_ylim([-0.25-attribute_count / 4, 0.25+attribute_count / 4])
 
         ax.set_aspect('equal')
         plt.show()
@@ -218,16 +261,20 @@ def load_and_visualize():
         print("No file selected!")
         return
 
+    # Extract the dataset name from the filepath
+    dataset_name = filepath.split('/')[-1].split('.')[0]
+
     # Load the chosen dataset
     df = pd.read_csv(filepath)
-
-    # Check if the dataset has a 'class' column and other columns are numeric
-    if 'class' not in df.columns or not all(df.drop(columns='class').applymap(np.isreal).all()):
-        print("Invalid dataset! Ensure the dataset has a 'class' column and other columns are numeric.")
-        return
+    
+    # Fit LDA and predict
+    X = df.drop(columns='class').values
+    y = df['class'].values
+    lda = LinearDiscriminantAnalysis()
+    lda.fit(X, y)
 
     scc_with_legend_and_style = SCCWithChords(df)
-    scc_with_legend_and_style.plot()
+    scc_with_legend_and_style.plot(lda, dataset_name)
 
 if __name__ == "__main__":
     load_and_visualize()

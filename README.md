@@ -4,7 +4,7 @@
 
 *Datasets must have a 'class' column with all other columns being numerical*.
 
-Iris dataset in dynamic circular coordinates with path highlighting:
+Iris Setosa vs Virginica and Versicolor classes:
 ![Example of Iris dataset plot and highlight](ex1.png)
 
 ## Features
@@ -12,7 +12,9 @@ Iris dataset in dynamic circular coordinates with path highlighting:
     - Plots data points in a circular format based on the number of attributes.
     - Connects data points with Bezier curves.
     - Highlights the curves underneath the cursor.
-    - Prints the datapoints at 0,0
+    - Prints the datapoint vectors.
+    - Runs Linear Discriminant Analysis on the dataset.
+    - Plots the confusion matrix and decision boundary.
     - Supports multiple classes with unique color per class.
     - Adjustable Bezier curve control points for inner and outer curves.
     - Integrated file-picker for easy dataset selection.
