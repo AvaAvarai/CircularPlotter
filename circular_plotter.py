@@ -239,11 +239,13 @@ class SCCWithChords:
         X = self.data.drop(columns='class').values
         y = self.data['class'].values
         y_pred = lda.predict(X)
+        accuracy = np.mean(y == y_pred)
         cm = confusion_matrix(y, y_pred)
+        accuracy_title = f"Confusion Matrix\nAccuracy: {accuracy:.2%}"
         sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax2, cbar=False)
         ax2.set_xlabel('Predicted labels')
         ax2.set_ylabel('True labels')
-        ax2.set_title('Confusion Matrix')
+        ax2.set_title(accuracy_title)
 
         # Create a textbox for hover details
         self.hover_info_box = ax.text(0.0, 0.0, '', transform=ax.transAxes, fontsize=8, 
