@@ -35,7 +35,7 @@ def adjusted_bezier_curve(p0, p1, class_order, radius, coef=100):
     y = (p0[1] + p1[1]) / 2
 
     # Calculate the distance between the center point (0,0) and the midpoint
-    mDistance = np.sqrt(np.power(0 - x, 2) + np.power(0 - y, 2))
+    mDistance = np.sqrt(np.power(-x, 2) + np.power(-y, 2))
 
     if class_order == 0:  # Inner curve
         # Calculate the scaling factor for the inner curve
@@ -90,47 +90,50 @@ class SCCWithChords:
         self.all_colors = []
 
         for class_order, class_name in enumerate(classes):
-            positions = []
+            class_positions = []
+            class_colors = []
             df_name = self.data[self.data['class'] == class_name]
-            df_name = df_name.drop(columns='class', axis=1)
-            x_coord = np.tile(section_array, reps=len(df_name.index))
-            y_coord = df_name.to_numpy().ravel()
-            attribute_length = attribute_count * len(df_name)
-            arc_length = 0
-            arc_rule = 0
-            for i in range(attribute_length):
-                if arc_rule >= attribute_count:
-                    arc_length = 0
-                    arc_rule = 0
-                else:
-                    arc_length += y_coord[i]
-                    arc_rule += 1
-                radius = attribute_count / (2 * np.pi)
-                center_angle = arc_length * 360 / (2 * np.pi * radius)
-                center_angle = np.pi * center_angle / 180
-                x_coord[i] = radius * np.sin(center_angle)
-                y_coord[i] = radius * np.cos(center_angle)
-                
-            pos_array = np.column_stack((x_coord, y_coord))
-            positions.extend(pos_array)
-            colors = [self.color_map[class_name]] * len(pos_array)
-            self.all_positions.append(positions)
-            self.all_colors.append(colors)
+            for index, row in df_name.iterrows():
+                positions = []
+                colors = []
+                y_values = row.drop('class').values
+                x_coord = np.linspace(0, 1, attribute_count)
+                arc_length = 0
+                for i, y in enumerate(y_values):
+                    arc_length += y
+                    radius = attribute_count / (2 * np.pi)
+                    center_angle = arc_length * 360 / (2 * np.pi * radius)
+                    center_angle = np.pi * center_angle / 180
+                    x = radius * np.sin(center_angle)
+                    y = radius * np.cos(center_angle)
+                    positions.append([x, y])
+                    colors.append(self.color_map[class_name])
+                class_positions.extend(positions)
+                class_colors.extend(colors)
+            self.all_positions.append(class_positions)
+            self.all_colors.append(class_colors)
     
     def on_hover(self, event):
         """Called when the mouse moves over the figure."""
         info_texts = []  # List to store the hover details for all highlighted lines
         
-        for line, original_color, start_point, end_point in self.lines:
+        hovered_row = None  # Keep track of which data row is being hovered over
+        for line, original_color, start_point, end_point, row in self.lines:
             if line.contains(event)[0]:
-                line.set_color('yellow')
-                line.set_alpha(0.6)
+                hovered_row = row
+                break
 
+        for line, original_color, start_point, end_point, row in self.lines:
+            if row == hovered_row:
+                line.set_color('yellow')
+                line.set_alpha(1.0)
+                line.set_zorder(1)  # Bring the line to the front
                 # Add the hover details for the line to the list
                 info_texts.append(f"Start: {start_point}\nEnd: {end_point}")
             else:
                 line.set_color(original_color)
-                line.set_alpha(0.3)
+                line.set_alpha(0.4)
+                line.set_zorder(0)
 
         # Convert the list of hover details into a single string and update the textbox
         self.hover_info_box.set_text("\n\n".join(info_texts))
@@ -149,10 +152,15 @@ class SCCWithChords:
             ax.scatter(positions[:, 0], positions[:, 1], color=colors, s=20, alpha=0.5)
 
             lightened_color = lighten_color(colors[0])
-            for i in range(len(positions) - 1):
-                curve_points = adjusted_bezier_curve(positions[i], positions[i+1], class_order, circle_radius)
-                line, = ax.plot(curve_points[:, 0], curve_points[:, 1], color=lightened_color, alpha=0.3)
-                self.lines.append((line, lightened_color, positions[i], positions[i+1]))
+            for i in range(0, len(positions) - 1, attribute_count):  
+                for j in range(i, i + attribute_count - 1):  # Connect each point to the next within the row
+                    start_pos = positions[j]
+                    end_pos = positions[j + 1]
+                    curve_points = adjusted_bezier_curve(start_pos, end_pos, class_order, circle_radius)
+                    line, = ax.plot(curve_points[:, 0], curve_points[:, 1], color=lightened_color, alpha=0.3)
+                    self.lines.append((line, lightened_color, start_pos, end_pos, j // attribute_count))
+
+
         # Connect the motion_notify_event to the on_hover function
         fig.canvas.mpl_connect('motion_notify_event', self.on_hover)
         circle = plt.Circle((0, 0), circle_radius, color='darkgrey', fill=False)
@@ -187,13 +195,16 @@ class SCCWithChords:
 
         # Create a textbox for hover details
         self.hover_info_box = ax.text(0.0, 0.0, '', transform=ax.transAxes, fontsize=8, 
-                              bbox=dict(facecolor='whitesmoke', edgecolor='darkgrey'))
+                              bbox=dict(facecolor='whitesmoke', edgecolor='darkgrey', alpha=0.2, boxstyle='round'))
 
         # Add legend for class color notation
         for class_name, color in self.color_map.items():
             ax.plot([], [], ' ', label=class_name, marker='o', color=color, markersize=10, markeredgecolor="none")
         ax.legend(loc="best", frameon=False, title="Classes")
-        
+
+        ax.set_xlim([-circle_radius - attribute_count / 4, circle_radius + attribute_count / 4])
+        ax.set_ylim([-circle_radius - attribute_count / 4, circle_radius + attribute_count / 4])
+
         ax.set_aspect('equal')
         plt.show()
 
