@@ -1,15 +1,19 @@
 # CircularPlotter
 
-**CircularPlotter** is a Python-based visualization tool designed to plot datasets in a circular format with Bezier curves connecting data points. This visualization is especially suited for datasets with a 'class' column and other numeric columns.
+**CircularPlotter** is a Python-based visualization tool designed to plot datasets in a circular format with Bezier curves connecting data points.
 
-Wisconsin Breast Cancer dataset in dynamic circular coordinates with path highlighting:
-![Example of WBC dataset plot and highlight](ex1.png)
+*Datasets must have a 'class' column with all other columns being numerical*.
+
+Iris dataset in dynamic circular coordinates with path highlighting:
+![Example of Iris dataset plot and highlight](ex1.png)
 
 ## Features
 
     - Plots data points in a circular format based on the number of attributes.
-    - Connects data points with Bezier curves, providing a clear and aesthetic representation.
-    - Supports multiple classes with unique colors for each class.
+    - Connects data points with Bezier curves.
+    - Highlights the curves underneath the cursor.
+    - Prints the datapoints at 0,0
+    - Supports multiple classes with unique color per class.
     - Adjustable Bezier curve control points for inner and outer curves.
     - Integrated file-picker for easy dataset selection.
 
